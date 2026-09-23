@@ -1,0 +1,19 @@
+# -----------------------------------------------------------------------------------------------
+# CI only (no CD) -- lints the playbook/role, doesn't touch any real infrastructure. Deployment
+# (running the playbook against the runner VM) stays GitHub-only, driven by
+# .github/workflows/run-playbook.yml, since it needs Azure OIDC credentials and NSG access not
+# duplicated onto GitLab.
+# -----------------------------------------------------------------------------------------------
+image: python:3.13-slim
+
+stages:
+  - lint
+
+lint:
+  stage: lint
+  before_script:
+    - pip install --no-cache-dir ansible-core ansible-lint yamllint
+  script:
+    - yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .
+    - ansible-playbook playbook.yml --syntax-check -i "localhost,"
+    - ansible-lint playbook.yml
