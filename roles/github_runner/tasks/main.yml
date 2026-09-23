@@ -1,0 +1,139 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: safe
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - unattended-upgrades
+      - ufw
+      - fail2ban
+      - curl
+      - jq
+    state: present
+
+- name: Add {{ github_runner_user }} to the docker group
+  ansible.builtin.user:
+    name: "{{ github_runner_user }}"
+    groups: docker
+    append: true
+
+- name: Enable unattended-upgrades
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    enabled: true
+    state: started
+
+- name: Configure ufw default policies
+  community.general.ufw:
+    policy: "{{ item.policy }}"
+    direction: "{{ item.direction }}"
+  loop:
+    - { policy: deny, direction: incoming }
+    - { policy: allow, direction: outgoing }
+
+- name: Allow SSH from the admin CIDR only
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    src: "{{ ssh_allowed_cidr }}"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+
+- name: Enable fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Get the latest actions/runner release tag
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/actions/runner/releases/latest
+    return_content: true
+  register: runner_release
+  delegate_to: localhost
+  become: false
+
+- name: Set runner version fact
+  ansible.builtin.set_fact:
+    runner_version: "{{ (runner_release.content | from_json).tag_name | regex_replace('^v', '') }}"
+
+- name: Create runner directory
+  ansible.builtin.file:
+    path: "{{ github_runner_dir }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_user }}"
+    mode: "0755"
+
+- name: Check whether the runner is already configured
+  ansible.builtin.stat:
+    path: "{{ github_runner_dir }}/.runner"
+  register: runner_configured
+
+- name: Download the runner package
+  ansible.builtin.get_url:
+    url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+    dest: "/tmp/actions-runner.tar.gz"
+    mode: "0644"
+  when: not runner_configured.stat.exists
+
+- name: Extract the runner package
+  ansible.builtin.unarchive:
+    src: "/tmp/actions-runner.tar.gz"
+    dest: "{{ github_runner_dir }}"
+    remote_src: true
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_user }}"
+  when: not runner_configured.stat.exists
+
+- name: Fetch a fresh runner registration token
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ target_repo }}/actions/runners/registration-token"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ github_pat }}"
+      Accept: "application/vnd.github+json"
+    status_code: 201
+    return_content: true
+  register: registration_token
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: not runner_configured.stat.exists
+
+- name: Register the runner
+  ansible.builtin.command:
+    cmd: >
+      ./config.sh --url https://github.com/{{ target_repo }}
+      --token {{ (registration_token.content | from_json).token }}
+      --name {{ runner_name }} --labels {{ github_runner_labels }}
+      --unattended --replace
+  args:
+    chdir: "{{ github_runner_dir }}"
+  become_user: "{{ github_runner_user }}"
+  no_log: true
+  when: not runner_configured.stat.exists
+
+- name: Install the runner as a systemd service
+  ansible.builtin.command:
+    cmd: "./svc.sh install {{ github_runner_user }}"
+    chdir: "{{ github_runner_dir }}"
+    creates: "/etc/systemd/system/actions.runner.*.service"
+  when: not runner_configured.stat.exists
+
+- name: Start the runner service
+  ansible.builtin.command:
+    cmd: ./svc.sh start
+    chdir: "{{ github_runner_dir }}"
+  when: not runner_configured.stat.exists

@@ -1,0 +1,10 @@
+---
+github_runner_dir: /opt/actions-runner
+github_runner_user: azureuser
+github_runner_labels: "self-hosted,linux,x64,azure"
+runner_name: "runner-prod-1"
+
+# Required, no sane default -- pass with -e at playbook run time:
+# github_pat: a GitHub PAT scoped to Administration: read/write on target_repo
+# target_repo: "owner/repo", e.g. alderichoarau/azure-quiz-backend
+# ssh_allowed_cidr: the same CIDR the Azure NSG already restricts SSH to, e.g. 1.2.3.4/32

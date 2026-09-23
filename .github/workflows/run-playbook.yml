@@ -1,0 +1,53 @@
+# -----------------------------------------------------------------------------------------------
+# Manually configures a target VM (provisioned by azure-infra-terraform's terraform-runner/) as a
+# GitHub Actions self-hosted runner. No automatic Terraform -> Ansible chaining yet -- run this by
+# hand with the VM's public IP after `terraform apply` completes.
+# -----------------------------------------------------------------------------------------------
+name: "Run playbook"
+run-name: "Configure runner · ${{ inputs.vm_ip }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      vm_ip:
+        description: "Public IP of the target VM (terraform output runner_vm_public_ip)"
+        required: true
+        type: string
+      target_repo:
+        description: "owner/repo the runner registers against"
+        required: true
+        type: string
+        default: "alderichoarau/azure-quiz-backend"
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v7
+
+      - name: "Install Ansible"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible-core
+          ansible-galaxy collection install community.general
+
+      - name: "Write SSH private key"
+        run: |
+          install -m 600 -D /dev/null /tmp/runner_key
+          printf '%s' "${{ secrets.RUNNER_SSH_PRIVATE_KEY }}" > /tmp/runner_key
+
+      - name: "Run playbook"
+        run: |
+          ansible-playbook -i "${{ inputs.vm_ip }}," -u azureuser --private-key /tmp/runner_key \
+            playbook.yml \
+            -e github_pat="${{ secrets.GH_RUNNER_REGISTER_PAT }}" \
+            -e target_repo="${{ inputs.target_repo }}" \
+            -e ssh_allowed_cidr="${{ secrets.RUNNER_ADMIN_IP_CIDR }}"
+
+      - name: "Clean up key"
+        if: always()
+        run: rm -f /tmp/runner_key
