@@ -2,6 +2,14 @@
 # Manually configures a target VM (provisioned by azure-infra-terraform's terraform-runner/) as a
 # GitHub Actions self-hosted runner. No automatic Terraform -> Ansible chaining yet -- run this by
 # hand with the VM's public IP after `terraform apply` completes.
+#
+# The VM's NSG only allows SSH from the owner's own IP (RUNNER_ADMIN_IP_CIDR), which this
+# GitHub-hosted runner doesn't have -- so this workflow authenticates to Azure (OIDC, same
+# sp-prod-alderic identity as azure-infra-terraform, needs its own federated credential for this
+# repo) and temporarily opens the NSG to its own current IP for the duration of the run, closing it
+# again afterwards (always(), even on failure). ssh_allowed_cidr passed to the playbook itself stays
+# the owner's own IP -- that's the VM's *host* firewall (ufw), a separate, permanent rule, untouched
+# by this temporary Azure-level NSG rule.
 # -----------------------------------------------------------------------------------------------
 name: "Run playbook"
 run-name: "Configure runner · ${{ inputs.vm_ip }}"
@@ -21,10 +29,13 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   configure:
     runs-on: ubuntu-latest
+    env:
+      ARM_USE_OIDC: "true"
     steps:
       - name: "Checkout"
         uses: actions/checkout@v7
@@ -40,6 +51,31 @@ jobs:
           install -m 600 -D /dev/null /tmp/runner_key
           printf '%s' "${{ secrets.RUNNER_SSH_PRIVATE_KEY }}" > /tmp/runner_key
 
+      - name: "Azure Login (OIDC)"
+        uses: alderichoarau/gha-azure-login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "Temporarily allow this runner's IP through the runner VM's NSG"
+        id: allow
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "Runner IP: $RUNNER_IP"
+          NSG_NAME=$(az network nsg list -g "${{ secrets.AZURE_RG_NAME }}" \
+            --query "[?starts_with(name,'nsg-runner')].name" -o tsv)
+          echo "nsg_name=$NSG_NAME" >> "$GITHUB_OUTPUT"
+          az network nsg rule create \
+            --resource-group "${{ secrets.AZURE_RG_NAME }}" \
+            --nsg-name "$NSG_NAME" \
+            --name "Allow-SSH-CI-Temp" \
+            --priority 110 \
+            --direction Inbound --access Allow --protocol Tcp \
+            --destination-port-ranges 22 \
+            --source-address-prefixes "$RUNNER_IP/32" \
+            --output none
+
       - name: "Run playbook"
         run: |
           ansible-playbook -i "${{ inputs.vm_ip }}," -u azureuser --private-key /tmp/runner_key \
@@ -47,6 +83,14 @@ jobs:
             -e github_pat="${{ secrets.GH_RUNNER_REGISTER_PAT }}" \
             -e target_repo="${{ inputs.target_repo }}" \
             -e ssh_allowed_cidr="${{ secrets.RUNNER_ADMIN_IP_CIDR }}"
+
+      - name: "Revoke temporary NSG rule"
+        if: always() && steps.allow.outputs.nsg_name != ''
+        run: |
+          az network nsg rule delete \
+            --resource-group "${{ secrets.AZURE_RG_NAME }}" \
+            --nsg-name "${{ steps.allow.outputs.nsg_name }}" \
+            --name "Allow-SSH-CI-Temp"
 
       - name: "Clean up key"
         if: always()
