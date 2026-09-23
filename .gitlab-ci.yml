@@ -14,6 +14,6 @@ lint:
   before_script:
     - pip install --no-cache-dir ansible-core ansible-lint yamllint
   script:
-    - yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .
+    - 'yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .'
     - ansible-playbook playbook.yml --syntax-check -i "localhost,"
     - ansible-lint playbook.yml
