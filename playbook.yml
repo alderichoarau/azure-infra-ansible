@@ -1,6 +1,6 @@
 ---
 - name: Configure GitHub Actions self-hosted runner
-  hosts: runner
+  hosts: all
   become: true
   roles:
     - github_runner
