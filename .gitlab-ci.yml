@@ -13,6 +13,7 @@ lint:
   stage: lint
   before_script:
     - pip install --no-cache-dir ansible-core ansible-lint yamllint
+    - ansible-galaxy collection install community.general
   script:
     - 'yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .'
     - ansible-playbook playbook.yml --syntax-check -i "localhost,"
