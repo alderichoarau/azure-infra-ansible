@@ -2,7 +2,7 @@
 github_runner_dir: /opt/actions-runner
 github_runner_user: azureuser
 github_runner_labels: "self-hosted,linux,x64,azure"
-runner_name: "runner-prod-1"
+github_runner_name: "runner-prod-1"
 
 # Required, no sane default -- pass with -e at playbook run time:
 # github_pat: a GitHub PAT scoped to Administration: read/write on target_repo

@@ -19,7 +19,7 @@
       - jq
     state: present
 
-- name: Add {{ github_runner_user }} to the docker group
+- name: Add runner user to the docker group
   ansible.builtin.user:
     name: "{{ github_runner_user }}"
     groups: docker
@@ -62,13 +62,13 @@
   ansible.builtin.uri:
     url: https://api.github.com/repos/actions/runner/releases/latest
     return_content: true
-  register: runner_release
+  register: github_runner_release
   delegate_to: localhost
   become: false
 
 - name: Set runner version fact
   ansible.builtin.set_fact:
-    runner_version: "{{ (runner_release.content | from_json).tag_name | regex_replace('^v', '') }}"
+    github_runner_version: "{{ (github_runner_release.content | from_json).tag_name | regex_replace('^v', '') }}"
 
 - name: Create runner directory
   ansible.builtin.file:
@@ -81,14 +81,14 @@
 - name: Check whether the runner is already configured
   ansible.builtin.stat:
     path: "{{ github_runner_dir }}/.runner"
-  register: runner_configured
+  register: github_runner_configured
 
 - name: Download the runner package
   ansible.builtin.get_url:
-    url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+    url: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
     dest: "/tmp/actions-runner.tar.gz"
     mode: "0644"
-  when: not runner_configured.stat.exists
+  when: not github_runner_configured.stat.exists
 
 - name: Extract the runner package
   ansible.builtin.unarchive:
@@ -97,7 +97,7 @@
     remote_src: true
     owner: "{{ github_runner_user }}"
     group: "{{ github_runner_user }}"
-  when: not runner_configured.stat.exists
+  when: not github_runner_configured.stat.exists
 
 - name: Fetch a fresh runner registration token
   ansible.builtin.uri:
@@ -108,34 +108,37 @@
       Accept: "application/vnd.github+json"
     status_code: 201
     return_content: true
-  register: registration_token
+  register: github_runner_registration_token
   delegate_to: localhost
   become: false
   no_log: true
-  when: not runner_configured.stat.exists
+  when: not github_runner_configured.stat.exists
 
 - name: Register the runner
   ansible.builtin.command:
     cmd: >
       ./config.sh --url https://github.com/{{ target_repo }}
-      --token {{ (registration_token.content | from_json).token }}
-      --name {{ runner_name }} --labels {{ github_runner_labels }}
+      --token {{ (github_runner_registration_token.content | from_json).token }}
+      --name {{ github_runner_name }} --labels {{ github_runner_labels }}
       --unattended --replace
   args:
     chdir: "{{ github_runner_dir }}"
+  become: true
   become_user: "{{ github_runner_user }}"
   no_log: true
-  when: not runner_configured.stat.exists
+  changed_when: true
+  when: not github_runner_configured.stat.exists
 
 - name: Install the runner as a systemd service
   ansible.builtin.command:
     cmd: "./svc.sh install {{ github_runner_user }}"
     chdir: "{{ github_runner_dir }}"
     creates: "/etc/systemd/system/actions.runner.*.service"
-  when: not runner_configured.stat.exists
+  when: not github_runner_configured.stat.exists
 
 - name: Start the runner service
   ansible.builtin.command:
     cmd: ./svc.sh start
     chdir: "{{ github_runner_dir }}"
-  when: not runner_configured.stat.exists
+  changed_when: true
+  when: not github_runner_configured.stat.exists
