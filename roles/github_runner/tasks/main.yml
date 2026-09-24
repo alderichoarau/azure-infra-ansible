@@ -153,19 +153,30 @@
   changed_when: true
   when: not github_runner_configured.stat.exists
 
+- name: Set the expected systemd unit name for this instance
+  ansible.builtin.set_fact:
+    github_runner_service_name: "actions.runner.{{ target_repo | regex_replace('/', '-') }}.{{ github_runner_name }}.service"
+
+# A glob like actions.runner.*.service would match ANY instance already installed on this VM,
+# not just this one -- with two instances on the same host, that made the second instance's
+# install/start silently skip because the first instance's unit file already existed.
+- name: Check whether this instance's systemd service is installed
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ github_runner_service_name }}"
+  register: github_runner_service_installed
+
 - name: Install the runner as a systemd service
   ansible.builtin.command:
     cmd: "./svc.sh install {{ github_runner_user }}"
     chdir: "{{ github_runner_dir }}"
-    creates: "/etc/systemd/system/actions.runner.*.service"
-  when: not github_runner_configured.stat.exists
+  when: not github_runner_service_installed.stat.exists
 
 - name: Start the runner service
   ansible.builtin.command:
     cmd: ./svc.sh start
     chdir: "{{ github_runner_dir }}"
   changed_when: true
-  when: not github_runner_configured.stat.exists
+  when: not github_runner_service_installed.stat.exists
 
 - name: Record which commit last configured this runner instance
   ansible.builtin.copy:
