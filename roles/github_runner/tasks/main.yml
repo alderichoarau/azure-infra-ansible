@@ -80,6 +80,11 @@
     enabled: true
     state: started
 
+- name: Check whether the runner is already configured
+  ansible.builtin.stat:
+    path: "{{ github_runner_dir }}/.runner"
+  register: github_runner_configured
+
 - name: Get the latest actions/runner release tag
   ansible.builtin.uri:
     url: https://api.github.com/repos/actions/runner/releases/latest
@@ -87,10 +92,12 @@
   register: github_runner_release
   delegate_to: localhost
   become: false
+  when: not github_runner_configured.stat.exists
 
 - name: Set runner version fact
   ansible.builtin.set_fact:
     github_runner_version: "{{ (github_runner_release.content | from_json).tag_name | regex_replace('^v', '') }}"
+  when: not github_runner_configured.stat.exists
 
 - name: Create runner directory
   ansible.builtin.file:
@@ -99,11 +106,6 @@
     owner: "{{ github_runner_user }}"
     group: "{{ github_runner_user }}"
     mode: "0755"
-
-- name: Check whether the runner is already configured
-  ansible.builtin.stat:
-    path: "{{ github_runner_dir }}/.runner"
-  register: github_runner_configured
 
 - name: Download the runner package
   ansible.builtin.get_url:

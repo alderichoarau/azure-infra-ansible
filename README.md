@@ -64,6 +64,8 @@ runs -- Dependabot doesn't cover Ansible Galaxy, so bump that file by hand when 
 Git already tracks *what the playbook does* at each commit; what it can't tell you on its own is
 *which version is actually applied to the VM*. Two things close that gap:
 
-- Tag meaningful versions (`git tag v1.1.0`) instead of relying on the latest commit on `main`.
+- Tag meaningful versions instead of relying on the latest commit on `main`. Current baseline:
+  [`v1.0.0`](https://github.com/alderichoarau/azure-infra-ansible/releases/tag/v1.0.0) -- bump it
+  (`git tag -a v1.1.0`) each time you add or change a role's behavior.
 - Each run writes `/etc/ansible-deployed-version` on the VM (commit SHA, ref, timestamp) --
   `ssh azureuser@<vm_ip> cat /etc/ansible-deployed-version` tells you exactly what's live.
