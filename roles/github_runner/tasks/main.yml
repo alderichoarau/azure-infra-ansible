@@ -29,16 +29,16 @@
 
 # Ubuntu 22.04's own "nodejs" apt package is v12 (archive-frozen) -- too old for the ES2020+
 # syntax in gha-setup-terraform's bundled Node script (nullish coalescing), which crashed with
-# "SyntaxError: Unexpected token '?'" on the self-hosted runner. NodeSource's repo matches the
-# Node major version ("node20") GitHub-hosted runner images actually ship.
+# "SyntaxError: Unexpected token '?'" on the self-hosted runner. 24.x is the current active LTS
+# (20 went EOL April 2026); 26 isn't LTS yet (still "Current" until October 2026).
 - name: Add NodeSource repository and install a modern Node.js
   ansible.builtin.shell: |
     set -o pipefail
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
     apt-get install -y nodejs
   args:
     executable: /bin/bash
-  when: github_runner_node_version.rc != 0 or not (github_runner_node_version.stdout is regex('^v(2[0-9]|[3-9][0-9])\.'))
+  when: github_runner_node_version.rc != 0 or not (github_runner_node_version.stdout is regex('^v(2[4-9]|[3-9][0-9])\.'))
   changed_when: true
 
 - name: Check whether Azure CLI is installed
