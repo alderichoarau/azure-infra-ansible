@@ -1,0 +1,43 @@
+# -----------------------------------------------------------------------------------------------
+# CI only (no CD) -- lints the playbook/role, doesn't touch any real infrastructure. Deployment
+# (running the playbook against the runner VM) is manual, via run-playbook.yml, since it needs
+# Azure OIDC/NSG access this check doesn't.
+# -----------------------------------------------------------------------------------------------
+name: "CI - Lint"
+run-name: "CI - Run Lint"
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: "Lint playbook & role"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v7
+
+      - name: "Install linters"
+        run: |
+          pip install --no-cache-dir ansible-core ansible-lint yamllint
+          ansible-galaxy collection install community.general
+
+      - name: "yamllint"
+        run: yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .
+
+      - name: "Ansible syntax check"
+        run: ansible-playbook playbook.yml --syntax-check -i "localhost,"
+
+      - name: "ansible-lint"
+        run: ansible-lint playbook.yml

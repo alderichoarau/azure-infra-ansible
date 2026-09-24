@@ -4,6 +4,17 @@ Configuration management with Ansible for Azure VMs provisioned by
 [azure-infra-terraform](https://github.com/alderichoarau/azure-infra-terraform). Terraform's job
 stops at creating the VM; this repo configures what runs on it.
 
+## Analysis
+
+### GitHub
+
+[![CI - Lint](https://github.com/alderichoarau/azure-infra-ansible/actions/workflows/ci.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-ansible/actions/workflows/ci.yml)
+
+### Mirror
+
+[![GitLab CI](https://img.shields.io/gitlab/pipeline-status/alderichoarau%2Fazure-infra-ansible?branch=main&label=GitLab%20CI&logo=gitlab)](https://gitlab.com/alderichoarau/azure-infra-ansible/-/pipelines)
+[![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/alderic-hoarau/azure-infra-ansible/main?label=Bitbucket%20CI&logo=bitbucket)](https://bitbucket.org/alderic-hoarau/azure-infra-ansible/pipelines)
+
 ## Mirrors
 
 GitHub is the source of truth. This repository is automatically push-mirrored (read-only) to:
