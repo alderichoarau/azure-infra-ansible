@@ -17,6 +17,8 @@
       - fail2ban
       - curl
       - jq
+      - unzip
+      - git
     state: present
 
 - name: Add runner user to the docker group
