@@ -47,9 +47,11 @@ jobs:
           ansible-galaxy collection install community.general
 
       - name: "Write SSH private key"
+        env:
+          SSH_KEY: ${{ secrets.RUNNER_SSH_PRIVATE_KEY }}
         run: |
           install -m 600 -D /dev/null /tmp/runner_key
-          printf '%s' "${{ secrets.RUNNER_SSH_PRIVATE_KEY }}" > /tmp/runner_key
+          printf '%s\n' "$SSH_KEY" > /tmp/runner_key
 
       - name: "Azure Login (OIDC)"
         uses: alderichoarau/gha-azure-login@v3
