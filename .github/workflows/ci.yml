@@ -31,7 +31,7 @@ jobs:
       - name: "Install linters"
         run: |
           pip install --no-cache-dir ansible-core ansible-lint yamllint
-          ansible-galaxy collection install community.general
+          ansible-galaxy collection install -r requirements.yml
 
       - name: "yamllint"
         run: 'yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .'
