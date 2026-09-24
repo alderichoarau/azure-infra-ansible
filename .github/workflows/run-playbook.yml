@@ -76,6 +76,14 @@ jobs:
             --source-address-prefixes "$RUNNER_IP/32" \
             --output none
 
+      - name: "Pin the VM's SSH host key for this run"
+        run: |
+          mkdir -p ~/.ssh
+          for i in $(seq 1 10); do
+            ssh-keyscan -H "${{ inputs.vm_ip }}" >> ~/.ssh/known_hosts 2>/dev/null && break
+            sleep 3
+          done
+
       - name: "Run playbook"
         run: |
           ansible-playbook -i "${{ inputs.vm_ip }}," -u azureuser --private-key /tmp/runner_key \
