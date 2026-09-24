@@ -34,7 +34,7 @@ jobs:
           ansible-galaxy collection install community.general
 
       - name: "yamllint"
-        run: yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .
+        run: 'yamllint -d "{extends: default, rules: {line-length: {max: 160}}}" .'
 
       - name: "Ansible syntax check"
         run: ansible-playbook playbook.yml --syntax-check -i "localhost,"
