@@ -56,6 +56,13 @@ exists:
 Re-running the playbook is safe (idempotent) -- it skips runner registration/service install if
 already configured, but still re-applies hardening and package updates.
 
+**Running a second runner instance on the same VM**: self-hosted runners on a personal GitHub
+account register per-repo, so targeting a different repo needs its own registration, not just a
+different `target_repo` input. Override `runner_dir` (e.g. `/opt/actions-runner-terraform`) and
+`runner_name` (e.g. `runner-terraform-1`) alongside `target_repo` -- this installs a second,
+independent `actions-runner` directory and systemd service next to the first one. The GitHub PAT
+(`GH_RUNNER_REGISTER_PAT`) needs `Administration: read/write` on whichever repo you target.
+
 Collection versions used (`community.general`) are pinned in `requirements.yml` for reproducible
 runs -- Dependabot doesn't cover Ansible Galaxy, so bump that file by hand when needed.
 

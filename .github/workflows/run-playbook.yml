@@ -37,6 +37,16 @@ on:
         required: false
         type: boolean
         default: false
+      runner_dir:
+        description: "Install path for this runner instance -- override to run a second instance on the same VM, registered against a different repo"
+        required: false
+        type: string
+        default: "/opt/actions-runner"
+      runner_name:
+        description: "Runner name shown in the target repo's Settings > Actions > Runners"
+        required: false
+        type: string
+        default: "runner-prod-1"
 
 permissions:
   contents: read
@@ -109,7 +119,9 @@ jobs:
             -e target_repo="${{ inputs.target_repo }}" \
             -e ssh_allowed_cidr="${{ secrets.RUNNER_ADMIN_IP_CIDR }}" \
             -e github_runner_deployed_sha="${{ github.sha }}" \
-            -e github_runner_deployed_ref="${{ github.ref_name }}"
+            -e github_runner_deployed_ref="${{ github.ref_name }}" \
+            -e github_runner_dir="${{ inputs.runner_dir }}" \
+            -e github_runner_name="${{ inputs.runner_name }}"
 
       - name: "Revoke temporary NSG rule"
         if: always() && steps.allow.outputs.nsg_name != ''

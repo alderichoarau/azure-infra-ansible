@@ -167,12 +167,14 @@
   changed_when: true
   when: not github_runner_configured.stat.exists
 
-- name: Record which commit last configured this VM
+- name: Record which commit last configured this runner instance
   ansible.builtin.copy:
-    dest: /etc/ansible-deployed-version
+    dest: "/etc/ansible-deployed-version-{{ github_runner_name }}"
     mode: "0644"
     content: |
       role: github_runner
+      instance: {{ github_runner_name }}
+      target_repo: {{ target_repo }}
       commit: {{ github_runner_deployed_sha }}
       ref: {{ github_runner_deployed_ref }}
       deployed_at: {{ ansible_date_time.iso8601 }}
