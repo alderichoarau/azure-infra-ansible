@@ -69,3 +69,15 @@ Git already tracks *what the playbook does* at each commit; what it can't tell y
   (`git tag -a v1.1.0`) each time you add or change a role's behavior.
 - Each run writes `/etc/ansible-deployed-version` on the VM (commit SHA, ref, timestamp) --
   `ssh azureuser@<vm_ip> cat /etc/ansible-deployed-version` tells you exactly what's live.
+
+## Local Git hooks
+
+A [`.pre-commit-config.yaml`](.pre-commit-config.yaml) runs `yamllint` and `ansible-lint` before each
+commit -- the same checks as [ci.yml](.github/workflows/ci.yml), so issues are caught locally instead
+of failing in CI. One-time setup:
+
+```bash
+pip install pre-commit   # or: brew install pre-commit
+ansible-galaxy collection install -r requirements.yml   # ansible-lint needs to resolve community.general
+pre-commit install
+```
