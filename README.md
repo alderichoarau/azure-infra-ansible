@@ -54,3 +54,6 @@ exists:
 
 Re-running the playbook is safe (idempotent) -- it skips runner registration/service install if
 already configured, but still re-applies hardening and package updates.
+
+Collection versions used (`community.general`) are pinned in `requirements.yml` for reproducible
+runs -- Dependabot doesn't cover Ansible Galaxy, so bump that file by hand when needed.
