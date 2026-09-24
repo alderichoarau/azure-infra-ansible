@@ -21,6 +21,23 @@
       - git
     state: present
 
+- name: Check whether Azure CLI is installed
+  ansible.builtin.stat:
+    path: /usr/bin/az
+  register: github_runner_az_cli
+
+# CI jobs on this runner log in to Azure (azure/login, gha-azure-login) and expect `az` on PATH --
+# present on GitHub-hosted images, not on this bare VM. Official Microsoft install script, matching
+# how GitHub's own hosted images provision it.
+- name: Install Azure CLI
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  args:
+    executable: /bin/bash
+  when: not github_runner_az_cli.stat.exists
+  changed_when: true
+
 - name: Add runner user to the docker group
   ansible.builtin.user:
     name: "{{ github_runner_user }}"
