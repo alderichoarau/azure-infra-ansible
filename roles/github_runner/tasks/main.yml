@@ -19,6 +19,7 @@
       - jq
       - unzip
       - git
+      - nodejs
     state: present
 
 - name: Check whether Azure CLI is installed
