@@ -4,7 +4,12 @@ github_runner_user: azureuser
 github_runner_labels: "self-hosted,linux,x64,azure"
 github_runner_name: "runner-prod-1"
 
+github_runner_deployed_sha: "unknown"
+github_runner_deployed_ref: "unknown"
+
 # Required, no sane default -- pass with -e at playbook run time:
 # github_pat: a GitHub PAT scoped to Administration: read/write on target_repo
 # target_repo: "owner/repo", e.g. alderichoarau/azure-quiz-backend
 # ssh_allowed_cidr: the same CIDR the Azure NSG already restricts SSH to, e.g. 1.2.3.4/32
+# github_runner_deployed_sha: the commit SHA being applied (run-playbook.yml passes github.sha)
+# github_runner_deployed_ref: the branch/tag being applied (run-playbook.yml passes github.ref_name)

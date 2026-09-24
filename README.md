@@ -49,7 +49,8 @@ exists:
    - `RUNNER_ADMIN_IP_CIDR` -- the same CIDR the VM's NSG already restricts SSH to (defense in
      depth: the host firewall enforces it too)
 3. Run the **"Run playbook"** workflow (`workflow_dispatch`) with the VM's public IP and the target
-   `owner/repo`.
+   `owner/repo`. Tick `dry_run` first to preview changes (`--check --diff`, nothing applied) before
+   running for real.
 4. Confirm the runner shows up as **Idle** under the target repo's Settings → Actions → Runners.
 
 Re-running the playbook is safe (idempotent) -- it skips runner registration/service install if
@@ -57,3 +58,12 @@ already configured, but still re-applies hardening and package updates.
 
 Collection versions used (`community.general`) are pinned in `requirements.yml` for reproducible
 runs -- Dependabot doesn't cover Ansible Galaxy, so bump that file by hand when needed.
+
+## Tracking what's deployed
+
+Git already tracks *what the playbook does* at each commit; what it can't tell you on its own is
+*which version is actually applied to the VM*. Two things close that gap:
+
+- Tag meaningful versions (`git tag v1.1.0`) instead of relying on the latest commit on `main`.
+- Each run writes `/etc/ansible-deployed-version` on the VM (commit SHA, ref, timestamp) --
+  `ssh azureuser@<vm_ip> cat /etc/ansible-deployed-version` tells you exactly what's live.

@@ -164,3 +164,13 @@
     chdir: "{{ github_runner_dir }}"
   changed_when: true
   when: not github_runner_configured.stat.exists
+
+- name: Record which commit last configured this VM
+  ansible.builtin.copy:
+    dest: /etc/ansible-deployed-version
+    mode: "0644"
+    content: |
+      role: github_runner
+      commit: {{ github_runner_deployed_sha }}
+      ref: {{ github_runner_deployed_ref }}
+      deployed_at: {{ ansible_date_time.iso8601 }}

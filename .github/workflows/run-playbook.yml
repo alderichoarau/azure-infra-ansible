@@ -10,6 +10,12 @@
 # again afterwards (always(), even on failure). ssh_allowed_cidr passed to the playbook itself stays
 # the owner's own IP -- that's the VM's *host* firewall (ufw), a separate, permanent rule, untouched
 # by this temporary Azure-level NSG rule.
+#
+# dry_run (Ansible's rough equivalent of `terraform plan`) runs with --check --diff: no state is
+# actually changed and the runner-registration/version-marker tasks are skipped. One exception --
+# the uri module (fetching a fresh registration token) always executes for real even in check mode,
+# since Ansible has no way to "simulate" an HTTP call; the token is simply minted and left unused,
+# which is harmless (it expires after an hour).
 # -----------------------------------------------------------------------------------------------
 name: "Run playbook"
 run-name: "Configure runner · ${{ inputs.vm_ip }}"
@@ -26,6 +32,11 @@ on:
         required: true
         type: string
         default: "alderichoarau/azure-quiz-backend"
+      dry_run:
+        description: "Preview changes only (ansible-playbook --check --diff), apply nothing"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -88,11 +99,17 @@ jobs:
 
       - name: "Run playbook"
         run: |
+          CHECK_FLAGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            CHECK_FLAGS="--check --diff"
+          fi
           ansible-playbook -i "${{ inputs.vm_ip }}," -u azureuser --private-key /tmp/runner_key \
-            playbook.yml \
+            playbook.yml $CHECK_FLAGS \
             -e github_pat="${{ secrets.GH_RUNNER_REGISTER_PAT }}" \
             -e target_repo="${{ inputs.target_repo }}" \
-            -e ssh_allowed_cidr="${{ secrets.RUNNER_ADMIN_IP_CIDR }}"
+            -e ssh_allowed_cidr="${{ secrets.RUNNER_ADMIN_IP_CIDR }}" \
+            -e github_runner_deployed_sha="${{ github.sha }}" \
+            -e github_runner_deployed_ref="${{ github.ref_name }}"
 
       - name: "Revoke temporary NSG rule"
         if: always() && steps.allow.outputs.nsg_name != ''
